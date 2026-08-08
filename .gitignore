@@ -1,0 +1,64 @@
+# ---------------------------------------------------------------------------
+# Secrets
+# ---------------------------------------------------------------------------
+# Compose reads .env at container start; it holds real credentials and must
+# never be committed. .env.example documents the required keys and SHOULD be.
+.env
+.env.*
+!.env.example
+
+# ansible-vault password files. The vault ciphertext itself is safe to commit
+# by design — the password that opens it is not.
+.vault_pass
+.vault-password
+vault-password*
+vault_pass*
+
+# Keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+!*.pub
+
+# age / SOPS private keys, if that route is taken later
+keys.txt
+*.agekey
+
+# ---------------------------------------------------------------------------
+# Ansible
+# ---------------------------------------------------------------------------
+*.retry
+fact_cache/
+
+# Collections installed into the repo by `ansible-galaxy install -p`.
+# requirements.yml is the tracked source of truth for these.
+collections/ansible_collections/
+
+# ---------------------------------------------------------------------------
+# Docker Compose
+# ---------------------------------------------------------------------------
+# Local-only overrides. Compose merges this automatically if present, which
+# makes it a per-machine escape hatch rather than shared configuration.
+docker-compose.override.yml
+compose.override.yml
+
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# ---------------------------------------------------------------------------
+# Editors and OS
+# ---------------------------------------------------------------------------
+.DS_Store
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
