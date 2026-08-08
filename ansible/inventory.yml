@@ -1,0 +1,38 @@
+# Inventory for the homelab. One host, reachable by two independent paths.
+#
+# Connection details are spelled out explicitly rather than leaning on
+# ~/.ssh/config aliases, so this works unchanged from the desktop, the
+# MacBook, or anywhere else the key is present.
+
+all:
+  hosts:
+    homelab:
+      # Mesh path (NetBird). Works from anywhere the peer is enrolled.
+      ansible_host: channa-homelab.netbird.cloud
+
+      # LAN path — swap the line above for this one to bypass NetBird's
+      # control plane (useful if the mesh is down or you're on the LAN).
+      # ansible_host: 192.168.12.204
+
+      ansible_user: connor
+      ansible_ssh_private_key_file: ~/.ssh/id_ed25519_homelab_ncased
+
+      # Ubuntu 26.04 ships sudo-rs as the default `sudo` (update-alternatives
+      # priority 50, vs 40 for stock sudo at /usr/bin/sudo.ws).
+      #
+      # sudo-rs does not honour -p verbatim: given -p "FOO: " it emits
+      #     [sudo: FOO: ] Password:
+      # where stock sudo emits
+      #     FOO:
+      #
+      # Ansible identifies its become prompt by testing whether an output line
+      # *starts with* the prompt it passed. The sudo-rs line starts with
+      # "[sudo:", so the test never matches, the password is never sent, and
+      # the task dies with "Timeout (12s) waiting for privilege escalation
+      # prompt".
+      #
+      # Pointing Ansible at stock sudo fixes it without changing what `sudo`
+      # means for interactive logins. The system-wide alternative would be
+      # `sudo update-alternatives --set sudo /usr/bin/sudo.ws`, which is a
+      # bigger hammer than this needs.
+      ansible_become_exe: /usr/bin/sudo.ws

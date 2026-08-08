@@ -1,0 +1,65 @@
+---
+# Desired state for channa-homelab.
+#
+# This playbook describes the server as it is *now*. Every task should report
+# `ok` in check mode, with exactly one exception noted in tasks/docker.yml
+# (docker group membership, which hasn't been applied yet).
+#
+# Verify before applying:
+#     ansible-playbook site.yml --check --diff -K
+#
+# Apply:
+#     ansible-playbook site.yml -K
+#
+# Storage (LVM, fstab) deliberately lives in bootstrap.yml, not here — see
+# that file for why.
+
+- name: channa-homelab
+  hosts: homelab
+  become: true
+  gather_facts: true
+
+  vars:
+    # Account that administers Docker.
+    docker_admin_user: connor
+
+    # dpkg architecture. Not derivable from ansible_facts.architecture, which
+    # reports x86_64 rather than Debian's amd64.
+    docker_apt_arch: amd64
+    docker_apt_keyring: /etc/apt/keyrings/docker.asc
+
+    # Per-application state directories under /srv. Empty until the first
+    # service is deployed; see docs/adr/0001-bind-backed-named-volumes.md for
+    # the convention these follow.
+    #
+    # Each entry: { name: gitea, owner: "1000", group: "1000", mode: "0750" }
+    srv_apps: []
+
+  tasks:
+    - name: Base system
+      ansible.builtin.import_tasks: tasks/base.yml
+      tags: [base]
+
+    - name: Docker engine
+      ansible.builtin.import_tasks: tasks/docker.yml
+      tags: [docker]
+
+    - name: /srv application layout
+      ansible.builtin.import_tasks: tasks/srv-layout.yml
+      tags: [srv]
+
+    # Reconciled against the live ruleset on 2026-08-08. Safe to enforce:
+    # these tasks only add absent rules, they never flush, so a run cannot
+    # take away an access path.
+    - name: Firewall
+      ansible.builtin.import_tasks: tasks/firewall.yml
+      tags: [firewall]
+
+  handlers:
+    # NOTE: restarting the daemon stops running containers, because
+    # "live-restore" is not set in daemon.json. Harmless today (nothing is
+    # running); revisit once real services exist.
+    - name: Restart docker
+      ansible.builtin.systemd_service:
+        name: docker
+        state: restarted

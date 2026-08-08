@@ -1,0 +1,17 @@
+# Collections this repo's playbooks depend on.
+#
+# The `ansible` bundle (installed via `uv tool install`) already ships these,
+# so this file is documentation + reproducibility rather than a required
+# install step. If you ever move to a bare `ansible-core`, run:
+#
+#   ansible-galaxy collection install -r requirements.yml
+
+collections:
+  # ufw, and assorted lvm modules used by bootstrap.yml
+  - name: community.general
+
+  # mount (fstab management), profile_tasks callback
+  - name: ansible.posix
+
+  # available if a playbook ever needs to inspect Docker state
+  - name: community.docker
