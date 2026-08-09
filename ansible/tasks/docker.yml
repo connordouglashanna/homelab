@@ -91,9 +91,12 @@
 #     closed on loopback instead of publishing to a flat LAN shared with IoT
 #     devices.
 #
-#     UNVERIFIED: whether this also constrains the IPv6 binding (published
-#     ports currently bind [::] as well as 0.0.0.0). Re-run the port test
-#     after applying to confirm.
+#     Covers IPv6 too — verified 2026-08-08 by publishing the same container
+#     before and after:
+#         before:  0.0.0.0:8080  AND  [::]:8080
+#         after:   127.0.0.1:8080  (no v6 listener at all)
+#     Confirmed unreachable from the LAN, the mesh, and IPv6 link-local, while
+#     still serving HTTP 200 on the host's loopback.
 #
 #   live-restore: true
 #     Containers keep running while the daemon is down. Matters because
