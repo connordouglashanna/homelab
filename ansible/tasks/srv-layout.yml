@@ -14,19 +14,22 @@
     group: root
     mode: "0755"
 
-# Per-application directories. `srv_apps` is empty until the first service is
-# deployed, so this loop is a no-op today.
+# Per-application directories.
 #
 # Ownership is by numeric UID/GID on purpose: these must match the UID the
-# container process runs as, which generally does not correspond to any user
-# in the host's /etc/passwd.
+# container process runs as, which generally does not correspond to any user in
+# the host's /etc/passwd. A mismatch here shows up as the container failing to
+# write its own data directory, which is a confusing error to debug from the
+# inside.
+#
+# Order matters — parents are created before children, so list them that way.
 - name: Application state directories exist
   ansible.builtin.file:
-    path: "/srv/{{ item.name }}"
+    path: "/srv/{{ item.path }}"
     state: directory
     owner: "{{ item.owner | default('root') }}"
     group: "{{ item.group | default('root') }}"
     mode: "{{ item.mode | default('0750') }}"
   loop: "{{ srv_apps }}"
   loop_control:
-    label: "{{ item.name }}"
+    label: "{{ item.path }}"

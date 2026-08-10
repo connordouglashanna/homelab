@@ -1,0 +1,124 @@
+# Forgejo + Forgejo Actions runner.
+#
+# Deploy by pulling this repo onto the server and running `docker compose up -d`
+# from this directory. Never edit this file on the box — edit it here, commit,
+# pull. See docs/adr/0001-bind-backed-named-volumes.md for the volume convention.
+#
+# Requires /srv directories created first:  ansible-playbook site.yml --diff -K
+
+services:
+  forgejo:
+    image: codeberg.org/forgejo/forgejo:16
+    container_name: forgejo
+    restart: unless-stopped
+    environment:
+      # Must match the ownership of /srv/forgejo/data (see ansible srv_apps).
+      USER_UID: "1000"
+      USER_GID: "1000"
+
+      FORGEJO__server__DOMAIN: ${FORGEJO_DOMAIN}
+      FORGEJO__server__ROOT_URL: http://${FORGEJO_DOMAIN}:3000/
+      FORGEJO__server__HTTP_PORT: "3000"
+
+      # Forgejo's own SSH server, for git clone/push over SSH. Listens on 22
+      # inside the container; published on 2222 because the host's sshd owns
+      # 22. SSH_PORT is what Forgejo advertises in clone URLs, so it must be
+      # the *published* port, not the internal one.
+      FORGEJO__server__SSH_DOMAIN: ${FORGEJO_DOMAIN}
+      FORGEJO__server__SSH_LISTEN_PORT: "22"
+      FORGEJO__server__SSH_PORT: "2222"
+
+      # SQLite. One file, no second container, no database password, and
+      # `forgejo dump` captures everything in one artifact. Appropriate for a
+      # single-user forge; migrate to Postgres if that stops being true.
+      FORGEJO__database__DB_TYPE: sqlite3
+
+      FORGEJO__service__DISABLE_REGISTRATION: "true"
+
+      FORGEJO__actions__ENABLED: "true"
+      # Where bare `uses: actions/checkout@v4` resolves from. Without this a
+      # self-hosted instance has no way to find action definitions.
+      FORGEJO__actions__DEFAULT_ACTIONS_URL: https://data.forgejo.org
+    volumes:
+      - forgejo-data:/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      # Explicit interface binding is mandatory now: daemon.json sets
+      # "ip": "127.0.0.1", so a bare "3000:3000" would bind loopback only and
+      # be unreachable from the desktop or MacBook. Binding the NetBird IP
+      # publishes to the mesh and nothing else — not the LAN, not the internet.
+      - "${BIND_IP}:3000:3000"
+      - "${BIND_IP}:2222:22"
+    networks:
+      - forgejo
+
+  runner:
+    image: data.forgejo.org/forgejo/runner:13
+    container_name: forgejo-runner
+    restart: unless-stopped
+    # The runner image documents uid/gid 1001 for this compose layout.
+    user: "1001:1001"
+    depends_on:
+      - forgejo
+      - dind
+    environment:
+      # THE decision in this stack. The runner needs a Docker daemon to run
+      # job containers. The obvious way — mounting /var/run/docker.sock — hands
+      # every CI job the host daemon's API, which has no authorisation layer at
+      # all: any workflow could mount / into a privileged container and own
+      # channa-homelab. Anyone who can open a PR could do it.
+      #
+      # Pointing at a dind sidecar instead means a hostile workflow gets root
+      # inside dind, not root on the host. dind is `privileged: true`, so this
+      # is a real boundary rather than a perfect one — escape from a privileged
+      # container is possible. But it demands an escape, where the socket mount
+      # demands only an API call.
+      DOCKER_HOST: tcp://dind:2375
+    volumes:
+      - runner-data:/data
+    working_dir: /data
+    command: forgejo-runner daemon --config runner-config.yml
+    networks:
+      - forgejo
+
+  dind:
+    image: docker:dind
+    container_name: forgejo-runner-dind
+    restart: unless-stopped
+    privileged: true
+    command: dockerd -H tcp://0.0.0.0:2375 --tls=false
+    volumes:
+      - dind-storage:/var/lib/docker
+    networks:
+      # Deliberately only on the internal network — 2375 is unauthenticated
+      # and must never be published to a host interface.
+      - forgejo
+
+volumes:
+  # Bind-backed named volumes: the indirection seam of a named volume, with
+  # the bytes pinned to /srv where they are backed up and blast-radius isolated.
+  forgejo-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /srv/forgejo/data
+
+  runner-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /srv/forgejo-runner/data
+
+  # NOT bind-backed, deliberately. This holds images dind pulls for CI jobs —
+  # rebuildable cache, not application state. It belongs on the 50G docker LV
+  # with the rest of Docker's storage, not in /srv alongside data worth backing
+  # up. A plain named volume lands in /var/lib/docker/volumes, which is exactly
+  # right.
+  dind-storage:
+
+networks:
+  forgejo:
+    name: forgejo
