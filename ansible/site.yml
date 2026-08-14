@@ -66,9 +66,11 @@
       tags: [firewall]
 
   handlers:
-    # NOTE: restarting the daemon stops running containers, because
-    # "live-restore" is not set in daemon.json. Harmless today (nothing is
-    # running); revisit once real services exist.
+    # Containers survive this restart: daemon.json sets "live-restore": true.
+    # Without it, restarting the daemon would stop every container on the host.
+    # See the rationale block in tasks/docker.yml — note in particular that
+    # toggling live-restore itself needs a full restart, which does stop
+    # containers.
     - name: Restart docker
       ansible.builtin.systemd_service:
         name: docker
