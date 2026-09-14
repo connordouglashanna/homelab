@@ -6,15 +6,15 @@ This repository houses the IaC configuration files and planning for my homelab, 
 
 | Section | Contents | 
 |---|---|
-| [Overview]() | Architecture, repository layout |
-| [Hardware]() | Current machine, available hardware |
-| [Security posture]() | Threat model, access paths, and hardening measures |
-| [Getting started]() | Prerequisites, the bare-metal build, and operating guide |
-| [Services]() | A status table of available services |
-| [Configuration & secrets]() | .env conventions and .gitignore |
-| [Backup & restore]() | Backup system design overview and the restoration procedure |
-| [Design decisions]() | Overview of the ADR indexes and pointers to additional docs |
-| [Roadmap]() | Planned future additions, architecture changes, and so on |
+| [Overview](#overview) | Architecture, repository layout |
+| [Hardware](#hardware) | Current machine, available hardware |
+| [Security posture](#security-posture) | Threat model, access paths, and hardening measures |
+| [Getting started](#getting-started) | Prerequisites, the bare-metal build, and operating guide |
+| [Services](#services) | A status table of available services |
+| [Configuration & secrets](#configuration--secrets) | .env conventions and .gitignore |
+| [Backup & restore](#backup--restore) | Backup system design overview and the restoration procedure |
+| [Design decisions](#design-decisions) | Overview of the ADR indexes and pointers to additional docs |
+| [Roadmap](#roadmap) | Planned future additions, architecture changes, and so on |
 
 ## Overview
 
