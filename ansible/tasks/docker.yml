@@ -116,9 +116,7 @@
     owner: root
     group: root
     mode: "0644"
-    # Refuse to install a config the daemon would reject. Without this, a bad
-    # edit lands on disk, the handler restarts docker, and the daemon fails to
-    # come back — on a box whose only access path is a mesh agent.
+    # Refuse to install a config the daemon would reject
     validate: dockerd --validate --config-file %s
   notify: Restart docker
 
@@ -133,9 +131,8 @@
 
 # EXPECTED TO REPORT `changed` ON FIRST RUN.
 #
-# Everything above describes state that already exists; this is the one task
-# that doesn't. Membership in `docker` is equivalent to passwordless root —
-# the daemon API has no authorisation layer, so socket access allows mounting
+# Membership in `docker` is equivalent to passwordless root.
+# The daemon API has no authorisation layer, so socket access allows mounting
 # / into a privileged container. Accepted here because the decisive use case
 # is remote contexts (`docker context create --docker host=ssh://homelab`),
 # which run the CLI locally as the connecting SSH user with nowhere to insert

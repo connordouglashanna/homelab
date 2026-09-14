@@ -18,17 +18,8 @@ all:
       ansible_ssh_private_key_file: ~/.ssh/id_ed25519_homelab_ncased
 
       # Ubuntu 26.04 ships sudo-rs as the default `sudo` (update-alternatives
-      # priority 50, vs 40 for stock sudo at /usr/bin/sudo.ws).
-      #
-      # sudo-rs does not honour -p verbatim: given -p "FOO: " it emits
-      #     [sudo: FOO: ] Password:
-      # where stock sudo emits
-      #     FOO:
-      #
-      # Ansible identifies its become prompt by testing whether an output line
-      # *starts with* the prompt it passed. The sudo-rs line starts with
-      # "[sudo:", so the test never matches, the password is never sent, and
-      # the task dies with "Timeout (12s) waiting for privilege escalation
+      # priority 50, vs 40 for stock sudo at /usr/bin/sudo.ws). When `sudo-rs`
+      # is used the task dies with "Timeout (12s) waiting for privilege escalation
       # prompt".
       #
       # Pointing Ansible at stock sudo fixes it without changing what `sudo`

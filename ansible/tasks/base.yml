@@ -1,8 +1,8 @@
 ---
 # Baseline system identity and update posture.
 #
-# All of this already matches the server; these tasks exist to pin the values
-# so drift shows up in `--check --diff` rather than going unnoticed.
+# This already matches the server; these tasks pin the values
+# so drift shows up in `--check --diff`
 
 - name: Hostname is set
   ansible.builtin.hostname:
@@ -12,9 +12,8 @@
   community.general.timezone:
     name: Etc/UTC
 
-# Security updates apply automatically. This is why `live-restore` is worth
-# considering in daemon.json later — an unattended docker-ce upgrade will
-# bounce the daemon and stop every running container.
+# Security updates apply automatically. 
+# This motivates `live-restore` in daemon.json
 - name: Unattended upgrades installed
   ansible.builtin.apt:
     name: unattended-upgrades
