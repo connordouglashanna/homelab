@@ -23,6 +23,8 @@
         size: "{{ item.size }}"
         # Never shrink
         shrink: false
+        # Grows the filesystem together with the LV
+        resizefs: true
       loop: "{{ lvs }}"
       loop_control:
         label: "{{ item.name }}"
