@@ -1,25 +1,8 @@
 ---
-# UFW rules, reconciled against `sudo ufw status numbered` on 2026-08-08.
+# Additive: community.general.ufw adds absent rules and never flushes the ruleset, so
+# applying this playbook cannot remove an access path you rely on.
 #
-# Live ruleset at time of writing — exactly two entries, both the same rule
-# expressed for each address family:
-#
-#   [ 1] 22/tcp on wt0        ALLOW IN    Anywhere
-#   [ 2] 22/tcp (v6) on wt0   ALLOW IN    Anywhere (v6)
-#
-# Defaults from /etc/default/ufw:
-#   IPV6=yes                            MANAGE_BUILTINS=no
-#   DEFAULT_INPUT_POLICY="DROP"         DEFAULT_OUTPUT_POLICY="ACCEPT"
-#   DEFAULT_FORWARD_POLICY="DROP"       DEFAULT_APPLICATION_POLICY="SKIP"
-#
-# These tasks are ADDITIVE. community.general.ufw adds a rule when it is
-# absent and does nothing when it is present; it never flushes the ruleset.
-# So running this playbook cannot remove an access path you rely on.
-#
-# Note that UFW does not filter mesh traffic in the way the rules below might
-# suggest. Verified empirically: a port with no UFW allow rule was reachable
-# over wt0 until the NetBird ACL was corrected. The division of labour is
-# wlo1 -> UFW, wt0 -> NetBird ACL policy.
+# UFW governs wlo1 only. Mesh traffic on wt0 is filtered by NetBird ACL policy, not here.
 
 - name: UFW default policies
   community.general.ufw:
@@ -43,26 +26,11 @@
   community.general.ufw:
     state: enabled
 
-# ###########################################################################
-# NOT ENABLED — a deliberate decision, not an oversight.
-# ###########################################################################
+# Deliberately not enabled: there is no LAN path into this box, which makes NetBird the
+# only route to a headless machine. See ansible/README.md#host-unreachable.
 #
-# There is currently NO LAN path into this box. Verified from the desktop on
-# 2026-08-08: 192.168.12.222 -> 192.168.12.204 is on one subnet with a direct
-# route and a REACHABLE ARP entry, and TCP/22 is still dropped. `.local`
-# resolves (avahi answers, giving 192.168.12.204) but the connection dies at
-# the firewall. So `ssh homelab-lan` and `ssh connor@channa-homelab.local`
-# both fail today.
-#
-# That makes the NetBird mesh the single path to a headless machine. If the
-# NetBird agent fails, the cloud control plane is unreachable, or the account
-# has a problem, access requires physically attaching a keyboard and monitor.
-#
-# Uncommenting either rule below restores a second, independent path. The
-# tradeoff is that anything on the LAN — including IoT devices sharing this
-# flat L2 segment — can then reach port 22 and attempt authentication. SSH is
-# key-only with a passphrase-protected key and a single entry in
-# authorized_keys, so the exposure is modest.
+# Uncommenting either rule restores a second, independent path, at the cost of exposing
+# port 22 to a flat LAN shared with IoT devices.
 #
 # - name: SSH from the LAN
 #   community.general.ufw:
@@ -71,9 +39,8 @@
 #     to_port: "22"
 #     proto: tcp
 #
-# Narrower alternative: link-local IPv6 only. Unroutable off-segment, and
-# immune to the rogue DHCP server on this LAN handing out a broken IPv4
-# lease, since it does not depend on DHCP at all.
+# Narrower alternative: link-local IPv6 only — unroutable off-segment, and independent of
+# the rogue DHCP server on this LAN.
 #
 # - name: SSH over link-local IPv6 on the LAN interface
 #   community.general.ufw:

@@ -1,8 +1,5 @@
 ---
-# Baseline system identity and update posture.
-#
-# This already matches the server; these tasks pin the values
-# so drift shows up in `--check --diff`
+# Pinned to detect changes at playbook runtime
 
 - name: Hostname is set
   ansible.builtin.hostname:
@@ -12,8 +9,7 @@
   community.general.timezone:
     name: Etc/UTC
 
-# Security updates apply automatically. 
-# This motivates `live-restore` in daemon.json
+# Motivates `live-restore` in daemon.json
 - name: Unattended upgrades installed
   ansible.builtin.apt:
     name: unattended-upgrades

@@ -1,5 +1,3 @@
-# Collections this repo's playbooks depend on.
-
 collections:
   # ufw, and assorted lvm modules used by bootstrap.yml
   - name: community.general

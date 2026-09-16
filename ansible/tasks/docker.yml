@@ -1,19 +1,5 @@
 ---
-# Docker CE from Docker's official apt repository.
-#
-# Installed at the time of writing (2026-08-08):
-#   docker-ce             5:29.7.2-1~ubuntu.26.04~resolute
-#   docker-ce-cli         5:29.7.2-1~ubuntu.26.04~resolute
-#   containerd.io         2.3.3-1~ubuntu.26.04~resolute
-#   docker-buildx-plugin  0.36.1-1~ubuntu.26.04~resolute
-#   docker-compose-plugin 5.4.0-1~ubuntu.26.04~resolute
-#
-# Versions are recorded here as documentation but deliberately NOT pinned in
-# the apt task — pinning would freeze security updates, which unattended-
-# upgrades is otherwise applying for you.
-#
-# docker-ce-rootless-extras is also installed, but as a dependency (it is not
-# in `apt-mark showmanual`). It is not listed below for that reason.
+# Docker CE from Docker's official apt repository
 
 - name: Keyring directory exists
   ansible.builtin.file:
@@ -30,19 +16,15 @@
     owner: root
     group: root
     mode: "0644"
-    # Don't re-fetch on every run; the key rotates rarely and a failed
-    # download shouldn't be able to truncate a working keyring.
+    # A failed download shouldn't truncate a working keyring.
     force: false
 
-# Managed as a literal file rather than via apt_repository/deb822_repository.
-# Both of those name the file themselves (a sanitised URL, or docker.sources),
-# which would leave the existing docker.list in place and produce a duplicate
-# repository entry. Matching the file on disk keeps this idempotent.
+# A literal file, not apt_repository/deb822_repository: those name the file themselves and
+# would leave this docker.list in place as a duplicate entry.
 - name: Docker apt repository configured
   ansible.builtin.copy:
     dest: /etc/apt/sources.list.d/docker.list
-    # Folded with `>` (clip), not `>-` (strip): the file on disk ends with a
-    # newline, and stripping it would make this task report changed forever.
+    # `>` not `>-`: the file on disk ends with a newline, and stripping it reports changed forever.
     content: >
       deb [arch={{ docker_apt_arch }} signed-by={{ docker_apt_keyring }}]
       https://download.docker.com/linux/ubuntu
@@ -68,47 +50,15 @@
       - docker-compose-plugin
     state: present
 
-# Daemon configuration. JSON has no comment syntax, so the rationale for each
-# key lives here.
+# JSON has no comment syntax, so daemon.json's rationale lives here:
+#   log-opts       bind at container-create time, so rotation was configured before the
+#                  first container existed; it does not apply retroactively.
+#   ip             defaults published ports to loopback. See compose/README.md#publishing-ports-and-bind_ip.
+#   live-restore   containers survive the daemon bounce unattended-upgrades causes.
+#                  Incompatible with swarm mode; toggling needs a full restart, not a reload.
 #
-#   log-driver / log-opts
-#     Rotation, capped at 3 x 10MB per container. Deliberately configured
-#     before the first container was ever created, because log-opts bind at
-#     container-create time and do not apply retroactively.
-#
-#   ip: 127.0.0.1
-#     Default bind address for published ports. Docker's default is 0.0.0.0,
-#     which means `-p 8080:80` publishes on every interface including the LAN.
-#     Measured 2026-08-08: with 0.0.0.0 the port was still unreachable from
-#     the LAN (UFW held) and from the mesh (NetBird ACL held), so Docker 29's
-#     nftables integration does NOT bypass UFW on this host. This setting is
-#     defence in depth rather than a fix for a live hole — it removes the
-#     dependency on Docker and UFW continuing to agree across upgrades, which
-#     unattended-upgrades will deliver without warning.
-#
-#     Consequence: ports you want reachable must name an interface explicitly,
-#     e.g. `-p 100.108.127.155:8080:80` for mesh-only. Forgetting now fails
-#     closed on loopback instead of publishing to a flat LAN shared with IoT
-#     devices.
-#
-#     Covers IPv6 too — verified 2026-08-08 by publishing the same container
-#     before and after:
-#         before:  0.0.0.0:8080  AND  [::]:8080
-#         after:   127.0.0.1:8080  (no v6 listener at all)
-#     Confirmed unreachable from the LAN, the mesh, and IPv6 link-local, while
-#     still serving HTTP 200 on the host's loopback.
-#
-#   live-restore: true
-#     Containers keep running while the daemon is down. Matters because
-#     unattended-upgrades is enabled and a docker-ce upgrade bounces the
-#     daemon — without this, every service stops. Also protects against the
-#     Restart docker handler below taking down a live stack. Incompatible
-#     with swarm mode (not used here). Toggling it requires a full restart,
-#     not a reload.
-#
-# `data-root` is deliberately absent: /var/lib/docker is a mount point, and
-# letting the mount enforce the split means a failed mount surfaces as an
-# error rather than silently redirecting the daemon onto the root LV.
+# `data-root` is deliberately absent: /var/lib/docker is a mount point, so a failed mount
+# surfaces as an error instead of silently redirecting the daemon onto the root LV.
 - name: Docker daemon configuration
   ansible.builtin.copy:
     src: files/daemon.json
@@ -116,7 +66,6 @@
     owner: root
     group: root
     mode: "0644"
-    # Refuse to install a config the daemon would reject
     validate: dockerd --validate --config-file %s
   notify: Restart docker
 
@@ -129,16 +78,6 @@
     - containerd
     - docker
 
-# EXPECTED TO REPORT `changed` ON FIRST RUN.
-#
-# Membership in `docker` is equivalent to passwordless root.
-# The daemon API has no authorisation layer, so socket access allows mounting
-# / into a privileged container. Accepted here because the decisive use case
-# is remote contexts (`docker context create --docker host=ssh://homelab`),
-# which run the CLI locally as the connecting SSH user with nowhere to insert
-# sudo, and because connor already holds passworded sudo on this host.
-#
-# Takes effect on the next login, not immediately.
 - name: Docker administrator in the docker group
   ansible.builtin.user:
     name: "{{ docker_admin_user }}"

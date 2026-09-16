@@ -1,7 +1,6 @@
 ---
-# ############################################################################
-# DESTRUCTIVE. Tagged `never` — will not run as part of a normal playbook run.
-# ############################################################################
+# DESTRUCTIVE — rewrites /etc/fstab and formats logical volumes.
+# See ansible/README.md#bootstrap.
 
 - name: channa-homelab storage bootstrap
   hosts: homelab
@@ -21,7 +20,6 @@
         vg: "{{ vg }}"
         lv: "{{ item.name }}"
         size: "{{ item.size }}"
-        # Never shrink
         shrink: false
         # Grows the filesystem together with the LV
         resizefs: true
@@ -40,8 +38,7 @@
       loop_control:
         label: "{{ item.name }}"
 
-    # Default is 5% held back for root, 1% still leaves enough headroom
-    # to recover from a full filesystem.
+    # Default holds back 5% for root; 1% still leaves recovery headroom.
     - name: Reserved block percentage lowered to 1%
       ansible.builtin.command:
         cmd: "tune2fs -m 1 /dev/{{ vg }}/{{ item.name }}"
@@ -50,10 +47,8 @@
         label: "{{ item.name }}"
       changed_when: false
 
-    # CAUTION: on a rebuild the filesystem UUIDs will be NEW, so the UUID=
-    # entries currently in /etc/fstab will not match. This task mounts by
-    # LABEL instead, which survives a rebuild. If you run this, expect the
-    # existing hand-written UUID lines to be replaced.
+    # Mounts by LABEL, which survives a rebuild. Expect the installer's hand-written
+    # UUID= lines in /etc/fstab to be replaced.
     - name: Mounted and recorded in fstab
       ansible.posix.mount:
         src: "LABEL={{ item.label }}"

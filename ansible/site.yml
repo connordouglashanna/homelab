@@ -1,28 +1,15 @@
 ---
-# Desired state for channa-homelab.
-#
-# Verify before applying:
-#     ansible-playbook site.yml --check --diff -K
-#
-# Apply:
-#     ansible-playbook site.yml -K
-
 - name: channa-homelab
   hosts: homelab
   become: true
   gather_facts: true
 
   vars:
-    # Account that administers Docker
     docker_admin_user: connor
 
-    # dpkg architecture
     docker_apt_arch: amd64
     docker_apt_keyring: /etc/apt/keyrings/docker.asc
 
-    # Per-application state directories under /srv
-    #
-    # UIDs must match the container process since they are baked into the image.
     srv_apps:
       # Forgejo: USER_UID/USER_GID 1000 in compose/forgejo/compose.yml
       - { path: forgejo, owner: "1000", group: "1000", mode: "0750" }
