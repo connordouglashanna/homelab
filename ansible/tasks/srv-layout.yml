@@ -1,10 +1,5 @@
 ---
-# Application state lives under /srv, one directory per application, bound
-# into containers via bind-backed named volumes.
-#
-# Rationale and the full convention: docs/adr/0001-bind-backed-named-volumes.md
-# /srv is its own 75G LV so a runaway application cannot fill / and lock you
-# out of a headless box.
+# One directory per application under /srv, per ADR 0001.
 
 - name: /srv exists with conservative ownership
   ansible.builtin.file:
@@ -14,15 +9,7 @@
     group: root
     mode: "0755"
 
-# Per-application directories.
-#
-# Ownership is by numeric UID/GID on purpose: these must match the UID the
-# container process runs as, which generally does not correspond to any user in
-# the host's /etc/passwd. A mismatch here shows up as the container failing to
-# write its own data directory, which is a confusing error to debug from the
-# inside.
-#
-# Order matters — parents are created before children, so list them that way.
+# Parents before children: the loop creates directories in list order.
 - name: Application state directories exist
   ansible.builtin.file:
     path: "/srv/{{ item.path }}"

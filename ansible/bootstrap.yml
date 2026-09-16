@@ -1,28 +1,6 @@
 ---
-# ############################################################################
-# DESTRUCTIVE. Tagged `never` — will not run as part of a normal playbook run.
-# ############################################################################
-#
-# This describes the storage layer for a REBUILD, not for routine enforcement.
-# It is kept out of site.yml because partitioning tasks are the one category
-# where a mistake costs data rather than uptime, and because the layer is
-# already built and reboot-verified on the live host.
-#
-# It exists for disaster recovery, which is not hypothetical here: channa-
-# homelab is a single 476.9G NVMe with no redundancy.
-#
-# To run it deliberately:
-#     ansible-playbook bootstrap.yml --tags bootstrap -K
-#
-# Current live layout (verified 2026-08-08):
-#     nvme0n1p1     1G  vfat  /boot/efi
-#     nvme0n1p2     2G  ext4  /boot
-#     nvme0n1p3 473.9G  LVM2 PV, vg "ubuntu-vg"
-#       ubuntu-lv    100G  ext4  /
-#       docker        50G  ext4  /var/lib/docker   (label: docker)
-#       srv           75G  ext4  /srv              (label: srv)
-#     ~249G left unallocated on purpose: LVM grows online but ext4 cannot
-#     shrink while mounted, so allocate small and `lvextend -r` on demand.
+# DESTRUCTIVE — rewrites /etc/fstab and formats logical volumes.
+# See ansible/README.md#bootstrap.
 
 - name: channa-homelab storage bootstrap
   hosts: homelab
@@ -42,8 +20,9 @@
         vg: "{{ vg }}"
         lv: "{{ item.name }}"
         size: "{{ item.size }}"
-        # Never shrink. Growth is the only safe automated direction.
         shrink: false
+        # Grows the filesystem together with the LV
+        resizefs: true
       loop: "{{ lvs }}"
       loop_control:
         label: "{{ item.name }}"
@@ -59,9 +38,7 @@
       loop_control:
         label: "{{ item.name }}"
 
-    # Default is 5% held back for root — sensible on /, wasteful on a 75G
-    # data volume. 1% still leaves enough headroom to recover from a full
-    # filesystem. Applied to the live host already.
+    # Default holds back 5% for root; 1% still leaves recovery headroom.
     - name: Reserved block percentage lowered to 1%
       ansible.builtin.command:
         cmd: "tune2fs -m 1 /dev/{{ vg }}/{{ item.name }}"
@@ -70,10 +47,8 @@
         label: "{{ item.name }}"
       changed_when: false
 
-    # CAUTION: on a rebuild the filesystem UUIDs will be NEW, so the UUID=
-    # entries currently in /etc/fstab will not match. This task mounts by
-    # LABEL instead, which survives a rebuild. If you run this, expect the
-    # existing hand-written UUID lines to be replaced.
+    # Mounts by LABEL, which survives a rebuild. Expect the installer's hand-written
+    # UUID= lines in /etc/fstab to be replaced.
     - name: Mounted and recorded in fstab
       ansible.posix.mount:
         src: "LABEL={{ item.label }}"
