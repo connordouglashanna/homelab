@@ -27,7 +27,7 @@ An application directory contains:
 Before starting any application on the server:
 
 - [`site.yml`](../ansible/site.yml) has been applied, so Docker is installed and the `/srv` directories exist with the correct owner UIDs
-- The repository is cloned onto the server
+- The repository is cloned onto the server at `~connor/homelab` — not under `/srv`, which holds container-owned state only (see the note in the [root README](../README.md#building-from-bare-metal))
 - The `docker` group membership has been activated after the first run of `site.yml`
 - Each stack has a populated `.env` following the structure of `.env.example`
 

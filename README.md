@@ -174,7 +174,7 @@ The workstation applying this configuration needs:
 
 - [uv](https://docs.astral.sh/uv/), then `uv sync` to install Ansible from [`pyproject.toml`](pyproject.toml) into `.venv`. Activate it with `source .venv/bin/activate`, or prefix each command below with `uv run`
 - Enrollment in the NetBird mesh, which is the only remote path to the server
-- A private SSH key at `~/.ssh/id_ed25519_homelab_ncased` matching the path in [`inventory.yml`](ansible/inventory.yml)
+- A private SSH key under `~/.ssh/`, with its filename set as `HOMELAB_SSH_KEY` in `ansible/.env` (see [the Ansible README](ansible/README.md#naming-the-ssh-key))
 
 ### Building from bare metal
 
@@ -187,7 +187,7 @@ To start a clean setup, perform the following steps:
 5. Build the storage layer using `ansible-playbook bootstrap.yml --tags bootstrap -K`
 6. Apply the host configuration using `ansible-playbook site.yml --diff -K`
 7. Log out and log back in to apply Docker group membership
-8. Clone the repository onto the server for the Docker Compose files
+8. Clone the repository to `~connor/homelab` on the server for the Docker Compose files
 9. In each `compose/` subdirectory, run `cp .env.example .env` and fill in the values
 10. In each `compose/` subdirectory, run `docker compose up -d`
 
@@ -195,6 +195,7 @@ Also note the following details:
 
 - [`bootstrap.yml`](ansible/bootstrap.yml) creates logical volumes inside the volume group `ubuntu-vg` but never creates the group itself, because it assumes the installer has already done so
 - The Docker daemon publishes to `127.0.0.1` by default, so an unset `BIND_IP` produces containers that won't be accessible from the public internet
+- Repositories are cloned into `connor`'s home directory, not `/srv`. `/srv` holds per-application *state*, one directory per app, owned by the UID its container runs as and `0750` (see [ADR 0001](docs/adr/0001-bind-backed-named-volumes.md)) — a source tree is neither, and a stack that builds its own image needs a tree readable by the user running `docker compose`. Application `.env` files live beside their `compose.yml` in that clone, at mode `0600`
 
 ### Operating guide
 

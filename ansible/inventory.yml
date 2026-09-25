@@ -11,7 +11,11 @@ all:
       # ansible_host: 192.168.12.204
 
       ansible_user: connor
-      ansible_ssh_private_key_file: ~/.ssh/id_ed25519_homelab_ncased
+
+      # Key name comes from ansible/.env for portability.
+      # Load it before running:
+      #   set -a; source .env; set +a
+      ansible_ssh_private_key_file: "~/.ssh/{{ lookup('env', 'HOMELAB_SSH_KEY') or undef('HOMELAB_SSH_KEY is unset. Run: set -a; source .env; set +a') }}"
 
       # Stock sudo, not Ubuntu 26.04's default sudo-rs.
       # See ansible/README.md#timeout-12s-waiting-for-privilege-escalation-prompt.

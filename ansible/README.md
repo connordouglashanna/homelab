@@ -10,6 +10,8 @@ The layout for the files in this directory is shown below. Comments have been ad
 ansible/
 ├── ansible.cfg          # Config entry point for Ansible
 ├── inventory.yml        # The host(s) information
+├── .env.example         # Template for .env
+├── .env                 # Not committed. Names the local SSH key
 ├── requirements.yml     # Ansible collection dependencies for the playbooks
 ├── site.yml
 ├── bootstrap.yml
@@ -34,8 +36,25 @@ The device applying these playbooks will also need to:
 
 - Set up SSH connection to the server and enroll in the Netbird network
 - SSH configuration will require either access to an existing Netbird node or physical access to the server
-- The local key will need to be located at `~/.ssh/id_ed25519_homelab_ncased` in order to match the specified configuration in [`inventory.yml`](inventory.yml)
+- Hold a private key under `~/.ssh/`, named in `.env` as described below
 - The Ansible playbooks in this repository must be run from the Ansible subdirectory in order to ensure that [`ansible.cfg`](ansible.cfg) is available
+
+### Naming the SSH key
+
+[`inventory.yml`](inventory.yml) does not hardcode a key name, so the same inventory works from any workstation regardless of what that machine calls its key. The name is read from the `HOMELAB_SSH_KEY` environment variable and resolved under `~/.ssh/`:
+
+```bash
+cp .env.example .env
+nvim .env          # set HOMELAB_SSH_KEY to your key's filename
+```
+
+Note that this `.env` is for local use only. Only the `.env` files in [`compose/`](../compose/README.md#environment-files) are populated on the server.
+
+Ansible does not read `.env` on its own. Export it into the environment first, from this directory:
+
+```bash
+set -a; source .env; set +a
+```
 
 Once Ansible is installed and configured, run:
 
@@ -108,6 +127,10 @@ This configuration was chosen because it allows backups and restores to target t
 ### Timeout (12s) waiting for privilege escalation prompt
 
 Ubuntu 26.04 ships `sudo-rs` as the default `sudo`. Ansible identifies the become prompt by checking whether an output line starts with the prompt it sent. `sudo-rs` wraps it as `[sudo: ... ] Password:`, so the match never fires and the password is never sent. `inventory.yml` works around this with `ansible_become_exe: /usr/bin/sudo.ws`, pointing at stock sudo. Seeing this error means that line is missing or `/usr/bin/sudo.ws` no longer exists.
+
+### HOMELAB_SSH_KEY is unset
+
+`.env` has not been exported into the current shell. Run `set -a; source .env; set +a` from `ansible/`. The variable is not inherited by a new terminal tab, so this is per-shell. If `.env` itself is missing, create it from `.env.example`.
 
 ### skipping: no hosts matched, or the inventory isn't found
 
