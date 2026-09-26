@@ -14,9 +14,10 @@ network:
       # IPv6 comes from networkd accepting RAs, which needs no config.
       dhcp4: true
 
-      # Route metric. Lower wins; wlo1 is 600. See README.md#network.
+      # Route metric. Lower wins; wlo1 is 600, so the wire is preferred while both
+      # links are up. 100 is the conventional ethernet value. See README.md#network.
       dhcp4-overrides:
-        route-metric: 700
+        route-metric: 100
 
       # Never block boot waiting for carrier here.
       optional: true
