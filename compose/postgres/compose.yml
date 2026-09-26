@@ -1,0 +1,50 @@
+services:
+  postgres:
+    image: postgres:18
+    container_name: postgres-state
+    restart: unless-stopped
+
+    # A database flushing buffers can need longer than Docker's 10s default; a SIGKILL
+    # mid-checkpoint forces crash recovery on the next start.
+    stop_grace_period: 1m
+
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD}
+
+      # One level below the mount point, so initdb owns the directory it works in.
+      PGDATA: /var/lib/postgresql/data/pgdata
+
+      # Consumed by initdb.d/10-databases.sh on first boot only.
+      PREFECT_DB_PASSWORD: ${PREFECT_DB_PASSWORD}
+      SQLMESH_DB_PASSWORD: ${SQLMESH_DB_PASSWORD}
+
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      # Plain bind mount for host-authored config, per ADR 0001.
+      - ./init-scripts:/docker-entrypoint-initdb.d/
+
+    ports:
+      - "${BIND_IP}:5432:5432"
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+    networks:
+      - data
+
+volumes:
+  postgres-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /srv/postgres/data
+
+networks:
+  data:
+    name: data

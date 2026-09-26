@@ -1,0 +1,57 @@
+---
+# Keeping this host reachable.
+#
+# channa-homelab is headless and its only route in is NetBird. This file exists 
+# to prevent Wi-Fi specifically (sometimes this box is too far from the router 
+# for ethernet) from creating a network failure.
+
+# --- Wi-Fi power saving ------------------------------------------------------
+#
+# Power saving on wlo1 drops the link. Powersave is an nl80211 driver setting,
+# so udev is needed to apply the change.
+
+- name: iw installed
+  ansible.builtin.apt:
+    name: iw
+    state: present
+
+- name: Wi-Fi power saving disabled at interface creation
+  ansible.builtin.copy:
+    dest: /etc/udev/rules.d/70-wifi-powersave-off.rules
+    content: |
+      ACTION=="add|change", SUBSYSTEM=="net", KERNEL=="wlo1", RUN+="/usr/sbin/iw dev wlo1 set power_save off"
+    owner: root
+    group: root
+    mode: "0644"
+
+# After a reboot, a `changed` on the set task
+# means the udev rule stopped firing.
+- name: Wi-Fi power save state
+  ansible.builtin.command: iw dev wlo1 get power_save
+  register: wifi_power_save
+  changed_when: false
+  check_mode: false
+
+- name: Wi-Fi power saving off 
+  ansible.builtin.command: iw dev wlo1 set power_save off
+  when: "'off' not in wifi_power_save.stdout"
+
+# --- Netplan routing ---------------------------------------------------------
+
+- name: Netplan routing overlay
+  ansible.builtin.copy:
+    src: netplan-90-homelab-routing.yaml
+    dest: /etc/netplan/90-homelab-routing.yaml
+    owner: root
+    group: root
+    # Netplan warns on world-readable files, and matches the installer's 0600.
+    mode: "0600"
+
+# Deliberately no handler. `netplan apply` reconfigures the interface this
+# playbook is running over, and a bad merge would strand a headless host. Apply
+# by hand the first time:
+#
+#     sudo netplan get ethernets.eno2     # inspect the MERGED result
+#     sudo netplan try                    # auto-reverts after 120s unconfirmed
+#
+# See ansible/README.md#network.

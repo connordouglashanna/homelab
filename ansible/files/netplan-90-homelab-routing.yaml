@@ -1,0 +1,26 @@
+# Managed by Ansible (ansible/tasks/network.yml). Do not edit on the host.
+#
+# Additive overlay. Netplan merges /etc/netplan/*.yaml in lexical order, so this
+# adds addressing and route priorities on top of subiquity's
+# 00-installer-config.yaml without restating the wifi PSK.
+network:
+  version: 2
+
+  ethernets:
+    eno2:
+      # It would seem that the DHCP4 client for eno2 is disabled by default
+      dhcp4: true
+
+      # Route metric, 100 is the conventional ethernet value. See README.md#network.
+      dhcp4-overrides:
+        route-metric: 100
+
+      # Never block boot waiting for carrier here.
+      optional: true
+
+  wifis:
+    wlo1:
+      # Restates the metric networkd already assigns wifi
+      dhcp4-overrides:
+        route-metric: 600
+      optional: true
