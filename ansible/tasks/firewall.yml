@@ -39,8 +39,7 @@
 #     to_port: "22"
 #     proto: tcp
 #
-# Narrower alternative: link-local IPv6 only — unroutable off-segment, and independent of
-# the rogue DHCP server on this LAN.
+# Narrower alternative: link-local IPv6 only — unroutable off-segment.
 #
 # - name: SSH over link-local IPv6 on the LAN interface
 #   community.general.ufw:

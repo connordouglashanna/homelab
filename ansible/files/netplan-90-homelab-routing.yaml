@@ -14,16 +14,7 @@ network:
       # IPv6 comes from networkd accepting RAs, which needs no config.
       dhcp4: true
 
-      # Deliberately WORSE than wlo1's 600: ethernet is a standby path, not the
-      # preferred one. This LAN carries a second, unsanctioned DHCP server (see
-      # tasks/firewall.yml). A bad lease at a winning metric would capture the
-      # default route and cut the only path to a headless host, so the wire does
-      # not get to win until its lease has been seen and trusted.
-      #
-      # Failover works regardless: if wifi drops, its metric-600 default route is
-      # withdrawn and this one is the only default left.
-      #
-      # Once eno2's lease is confirmed sane, lower this to 100 to prefer the wire.
+      # Route metric. Lower wins; wlo1 is 600. See README.md#network.
       dhcp4-overrides:
         route-metric: 700
 
