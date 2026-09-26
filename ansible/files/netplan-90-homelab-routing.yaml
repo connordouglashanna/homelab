@@ -8,7 +8,7 @@ network:
 
   ethernets:
     eno2:
-      # Ubuntu apparently ships with no dhcp4 client over IPv4
+      # It would seem that the DHCP4 client for eno2 is disabled by default
       dhcp4: true
 
       # Route metric, 100 is the conventional ethernet value. See README.md#network.

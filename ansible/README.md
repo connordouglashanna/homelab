@@ -127,12 +127,18 @@ Network configuration has a few 'surprises,' so Ansible now also manages the set
 
 Note that the router for the ISP that serves this device doesn't provide static device IP addresses, to the best of my knowledge. This is one of several reasons why Netbird is preferred for SSH connection to this host. 
 
-**TODO:** call ISP support to get a state LAN and router address configured.
+After running the `site.yml` playbook, use the following commands to activate the Netplan configuration responsible for overseeing routing networks:
+
+```bash
+netplan apply
+netplan try
+```
+
+**TODO:** call ISP support to get a static WAN and set up a DHCP reservation.
 
 ### Wi-Fi power saving incident
 
 Wi-fi power saving created an incident on 9/25/2026 which prevented the presentation of an unscheduled demo. In order to avoid similar interruptions recurring in the future, Ansible now disables Wi-Fi power saving as part of the `site.yml` playbook using the configuration settings in [`tasks/network.yml`](tasks/network.yml).
-
 
 ## Application state and UIDs
 
