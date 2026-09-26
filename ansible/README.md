@@ -16,11 +16,13 @@ ansible/
 ├── site.yml
 ├── bootstrap.yml
 ├── files/
-│   └── daemon.json      # Docker daemon config used by tasks/docker.yml
+│   ├── daemon.json      # Docker daemon config used by tasks/docker.yml
+│   └── netplan-90-homelab-routing.yaml   # Netplan overlay used by tasks/network.yml
 └── tasks/
     ├── base.yml
     ├── docker.yml
     ├── firewall.yml
+    ├── network.yml
     └── srv-layout.yml
 ```
 
@@ -98,6 +100,7 @@ The [site playbook](site.yml) executes the configuration details related to the 
 - [`base.yml`](tasks/base.yml) defines the time zone, installs `unattended-upgrades`, sets the hostname, and other core settings
 - [`docker.yml`](tasks/docker.yml) installs Docker, initializes the Docker daemon, and adds the `connor` user to the docker group
 - [`srv-layout.yml`](tasks/srv-layout.yml) constructs the per-application directories using the app configurations inside `site.yml`
+- [`network.yml`](tasks/network.yml) manages the physical links: Wi-Fi power saving and the netplan routing overlay
 - [`firewall.yml`](tasks/firewall.yml) manages the network configuration, currently opening only port 22 to Netbird traffic
 
 Note that the Docker admin status is effectively passwordless root permissioning. This is acceptable only because of the network configuration of the device, and may become a blocker before the device can be safely exposed to the open internet. 
@@ -113,6 +116,23 @@ ansible-playbook site.yml --diff -K
 ```
 
 Note that the `--diff` argument is suggested here so that the difference between the current configuration and the configuration of the setup defined by `site.yml` can be reviewed. The site playbook is idempotent, and will show an exit message `ok` for each set of tasks if the machine was up-to-date with the configuration specified by the playbook prior to running it. Note that the `docker.yml` task will report `changed` on first run. `-K` is provided in order to run the playbook tasks with root permissions.
+
+## Network
+
+Network configuration has a few 'surprises,' so Ansible now also manages the setup for network configuration. 
+
+- Network configuration is applied directly using Netplan and systemd-networkd
+- Routing metrics are configured to match the usual 'best practices' setup
+- Configuration file payload for Netplan adds DHCP4 client
+
+Note that the router for the ISP that serves this device doesn't provide static device IP addresses, to the best of my knowledge. This is one of several reasons why Netbird is preferred for SSH connection to this host. 
+
+**TODO:** call ISP support to get a state LAN and router address configured.
+
+### Wi-Fi power saving incident
+
+Wi-fi power saving created an incident on 9/25/2026 which prevented the presentation of an unscheduled demo. In order to avoid similar interruptions recurring in the future, Ansible now disables Wi-Fi power saving as part of the `site.yml` playbook using the configuration settings in [`tasks/network.yml`](tasks/network.yml).
+
 
 ## Application state and UIDs
 
