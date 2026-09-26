@@ -26,6 +26,10 @@
       ansible.builtin.import_tasks: tasks/base.yml
       tags: [base]
 
+    - name: Network links
+      ansible.builtin.import_tasks: tasks/network.yml
+      tags: [network]
+
     - name: Docker engine
       ansible.builtin.import_tasks: tasks/docker.yml
       tags: [docker]

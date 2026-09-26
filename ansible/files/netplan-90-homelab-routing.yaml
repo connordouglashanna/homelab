@@ -1,0 +1,40 @@
+# Managed by Ansible (ansible/tasks/network.yml). Do not edit on the host.
+#
+# Additive overlay. Netplan merges /etc/netplan/*.yaml in lexical order, so this
+# adds addressing and route priorities on top of subiquity's
+# 00-installer-config.yaml without restating the wifi PSK, which would otherwise
+# have to live in this repo.
+network:
+  version: 2
+
+  ethernets:
+    eno2:
+      # subiquity's file pins the interface name via match/set-name and nothing
+      # else, so eno2 has had no DHCP client and no IPv4 address at all. Its
+      # IPv6 comes from networkd accepting RAs, which needs no config.
+      dhcp4: true
+
+      # Deliberately WORSE than wlo1's 600: ethernet is a standby path, not the
+      # preferred one. This LAN carries a second, unsanctioned DHCP server (see
+      # tasks/firewall.yml). A bad lease at a winning metric would capture the
+      # default route and cut the only path to a headless host, so the wire does
+      # not get to win until its lease has been seen and trusted.
+      #
+      # Failover works regardless: if wifi drops, its metric-600 default route is
+      # withdrawn and this one is the only default left.
+      #
+      # Once eno2's lease is confirmed sane, lower this to 100 to prefer the wire.
+      dhcp4-overrides:
+        route-metric: 700
+
+      # Never block boot waiting for carrier here.
+      optional: true
+
+  wifis:
+    wlo1:
+      # Restates the metric networkd already assigns wifi, so the ordering above
+      # is explicit in one place rather than inherited from a default that could
+      # change under us.
+      dhcp4-overrides:
+        route-metric: 600
+      optional: true

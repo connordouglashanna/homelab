@@ -20,36 +20,3 @@
     name: unattended-upgrades
     enabled: true
     state: started
-
-# Wi-Fi power saving drops the link on this card, and a dropped link can mean no
-# route to a headless box. networkd and wpa_supplicant have no powersave setting
-# between them, so this is a udev rule fired when the interface appears.
-# NetworkManager is installed but netplan renders to networkd, so NM manages
-# nothing and never re-applies powersave at association — the rule holds.
-- name: iw installed
-  ansible.builtin.apt:
-    name: iw
-    state: present
-
-- name: Wi-Fi power saving disabled at interface creation
-  ansible.builtin.copy:
-    dest: /etc/udev/rules.d/70-wifi-powersave-off.rules
-    content: |
-      ACTION=="add|change", SUBSYSTEM=="net", KERNEL=="wlo1", RUN+="/usr/sbin/iw dev wlo1 set power_save off"
-    owner: root
-    group: root
-    mode: "0644"
-
-# The rule only fires on interface creation, so it does nothing for the interface
-# already up. Reading state first keeps `--check` clean and turns this pair into
-# the drift detector for the rule: after a reboot, a `changed` here means the
-# udev rule stopped working.
-- name: Wi-Fi power save state
-  ansible.builtin.command: iw dev wlo1 get power_save
-  register: wifi_power_save
-  changed_when: false
-  check_mode: false
-
-- name: Wi-Fi power saving off on the running interface
-  ansible.builtin.command: iw dev wlo1 set power_save off
-  when: "'off' not in wifi_power_save.stdout"

@@ -1,0 +1,67 @@
+---
+# Keeping this host reachable.
+#
+# channa-homelab is headless and its only route in is NetBird, which rides
+# whichever physical link has upstream connectivity. Wifi was that link alone
+# until an ethernet cable was added; a wifi drop meant hands on the machine.
+#
+# Both links terminate on the same router, so this is redundancy against a radio
+# or cable failure, not against the router or ISP going down.
+
+# --- Wi-Fi power saving ------------------------------------------------------
+#
+# Power saving on wlo1 drops the link. networkd and wpa_supplicant have no
+# powersave setting between them: powersave is an nl80211 driver setting, below
+# networkd's layer 3 and outside wpa_supplicant's schema. NetworkManager does
+# expose it, but netplan renders to networkd here so NM manages nothing.
+#
+# udev is the right layer for a hardware setting, and with no NM present nothing
+# re-applies powersave at association, so the rule holds.
+
+- name: iw installed
+  ansible.builtin.apt:
+    name: iw
+    state: present
+
+- name: Wi-Fi power saving disabled at interface creation
+  ansible.builtin.copy:
+    dest: /etc/udev/rules.d/70-wifi-powersave-off.rules
+    content: |
+      ACTION=="add|change", SUBSYSTEM=="net", KERNEL=="wlo1", RUN+="/usr/sbin/iw dev wlo1 set power_save off"
+    owner: root
+    group: root
+    mode: "0644"
+
+# The rule only fires on interface creation, so it does nothing for an interface
+# already up. Reading state first keeps `--check` clean and turns this pair into
+# the drift detector for the rule: after a reboot, a `changed` on the set task
+# means the udev rule stopped firing.
+- name: Wi-Fi power save state
+  ansible.builtin.command: iw dev wlo1 get power_save
+  register: wifi_power_save
+  changed_when: false
+  check_mode: false
+
+- name: Wi-Fi power saving off on the running interface
+  ansible.builtin.command: iw dev wlo1 set power_save off
+  when: "'off' not in wifi_power_save.stdout"
+
+# --- Netplan routing ---------------------------------------------------------
+
+- name: Netplan routing overlay
+  ansible.builtin.copy:
+    src: netplan-90-homelab-routing.yaml
+    dest: /etc/netplan/90-homelab-routing.yaml
+    owner: root
+    group: root
+    # Netplan warns on world-readable files, and matches the installer's 0600.
+    mode: "0600"
+
+# Deliberately no handler. `netplan apply` reconfigures the interface this
+# playbook is running over, and a bad merge would strand a headless host. Apply
+# by hand the first time:
+#
+#     sudo netplan get ethernets.eno2     # inspect the MERGED result
+#     sudo netplan try                    # auto-reverts after 120s unconfirmed
+#
+# See ansible/README.md#network.
